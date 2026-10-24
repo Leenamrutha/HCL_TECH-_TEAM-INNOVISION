@@ -1,0 +1,889 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: #172033;
+  background: #f5f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --primary: #4054c5;
+  --primary-hover: #3345a8;
+  --heading: #172033;
+  --body-text: #46516a;
+  --muted-text: #59657c;
+  --border: #e1e6ef;
+  --white: #ffffff;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  color: var(--heading);
+  background: #f5f7fb;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+/* ==========================================
+   HEADER
+   ========================================== */
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+
+  padding: 20px 6%;
+
+  background: #ffffff;
+  border-bottom: 1px solid #e6eaf1;
+}
+
+/* Brand */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  display: grid;
+  place-items: center;
+
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+
+  border-radius: 13px;
+  background: #e8edff;
+  color: #3348bb;
+
+  font-size: 25px;
+  font-weight: 800;
+}
+
+/* FIX: SmartLib AI heading is explicitly dark and visible */
+
+.brand h1 {
+  margin: 0;
+  color: #20243a !important;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.brand p {
+  margin: 4px 0 0;
+  color: #59657c !important;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Role selector */
+
+.role-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: #46516a;
+  font-size: 14px;
+}
+
+.role-picker select {
+  padding: 10px 12px;
+
+  color: #172033 !important;
+  background: #ffffff !important;
+
+  border: 1px solid #dce2ed;
+  border-radius: 9px;
+}
+
+/* ==========================================
+   MAIN CONTENT
+   ========================================== */
+
+.main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 42px 24px 60px;
+}
+
+/* Welcome section */
+
+.welcome {
+  margin-bottom: 30px;
+}
+
+/* Small label above heading */
+
+.eyebrow {
+  margin: 0 0 10px !important;
+
+  color: #4054c5 !important;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+
+/* FIX: Welcome heading is dark and readable */
+
+.welcome h2 {
+  margin: 0 0 12px;
+
+  color: #172033 !important;
+  font-size: clamp(27px, 4vw, 36px);
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -0.7px;
+}
+
+/* FIX: Welcome description is readable */
+
+.welcome > p:last-child {
+  margin: 0;
+
+  color: #46516a !important;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+/* Ensure welcome text remains visible if other styles exist */
+
+.welcome,
+.welcome h2,
+.welcome p {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ==========================================
+   SEARCH FORM
+   ========================================== */
+
+.search-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  width: 100%;
+  min-height: 68px;
+  padding: 10px 12px 10px 18px;
+
+  background: #ffffff !important;
+  border: 1px solid #d5dceb;
+  border-radius: 14px;
+
+  box-shadow: 0 5px 18px rgba(24, 38, 74, 0.06);
+}
+
+/* Search icon, if present */
+
+.search-form > span {
+  flex-shrink: 0;
+
+  color: #59657c;
+  font-size: 26px;
+}
+
+/*
+  FIX: Search text is always dark.
+  FIX: Input background is always white.
+  FIX: Typed text and placeholder are readable.
+*/
+
+.search-form input,
+.search-form input[type="text"],
+.search-form input[type="search"] {
+  display: block;
+  flex: 1;
+
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  padding: 12px 10px;
+
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+  caret-color: #4054c5 !important;
+
+  background-color: #ffffff !important;
+  background-image: none !important;
+
+  border: 1px solid transparent;
+  border-radius: 8px;
+
+  outline: none;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Placeholder colour */
+
+.search-form input::placeholder,
+.search-form input[type="search"]::placeholder {
+  color: #68748a !important;
+  -webkit-text-fill-color: #68748a !important;
+  opacity: 1 !important;
+}
+
+/* Browser compatibility for placeholder */
+
+.search-form input::-webkit-input-placeholder {
+  color: #68748a !important;
+  opacity: 1 !important;
+}
+
+.search-form input::-moz-placeholder {
+  color: #68748a !important;
+  opacity: 1 !important;
+}
+
+/* Search input hover */
+
+.search-form input:hover {
+  border-color: #d5dceb;
+}
+
+/* Search input focus */
+
+.search-form input:focus,
+.search-form input[type="search"]:focus {
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+
+  background-color: #ffffff !important;
+  border-color: #4054c5;
+
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(64, 84, 197, 0.12);
+}
+
+/* Selected text */
+
+.search-form input::selection {
+  color: #ffffff;
+  background: #4054c5;
+}
+
+/* Search button */
+
+.search-form button {
+  flex-shrink: 0;
+
+  min-height: 46px;
+  padding: 12px 22px;
+
+  color: #ffffff !important;
+  background: #4054c5 !important;
+
+  border: 1px solid #4054c5;
+  border-radius: 9px;
+
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.search-form button:hover:not(:disabled) {
+  color: #ffffff !important;
+  background: #3345a8 !important;
+}
+
+.search-form button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.search-form button:disabled {
+  opacity: 0.65;
+}
+
+/* ==========================================
+   RESOURCE SECTION
+   ========================================== */
+
+.section {
+  margin-top: 40px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+
+  margin-bottom: 18px;
+}
+
+.section-heading h3 {
+  margin: 0 0 7px;
+
+  color: #20243a;
+  font-size: 21px;
+  font-weight: 750;
+}
+
+.section-heading p {
+  margin: 0;
+
+  color: #59657c;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.result-count {
+  color: #59657c;
+  font-size: 13px;
+}
+
+.message {
+  margin-bottom: 18px;
+
+  color: #46516a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ==========================================
+   BOOK GRID
+   ========================================== */
+
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+  gap: 20px;
+}
+
+/* Book card */
+
+.book-card {
+  overflow: hidden;
+
+  background: #ffffff;
+  border: 1px solid #e1e6ef;
+  border-radius: 15px;
+
+  box-shadow: 0 3px 12px rgba(24, 38, 74, 0.035);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.book-card:hover {
+  transform: translateY(-3px);
+
+  border-color: #c7cff5;
+  box-shadow: 0 8px 22px rgba(24, 38, 74, 0.08);
+}
+
+/* Book cover */
+
+.book-cover {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  min-height: 110px;
+  padding: 22px;
+
+  color: #3345a8;
+  background: linear-gradient(125deg, #e9edff, #f4f1ff);
+
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.cover-symbol {
+  color: #3345a8;
+  font-size: 30px;
+}
+
+/* Book information */
+
+.book-info {
+  padding: 20px;
+}
+
+.category {
+  display: inline-block;
+
+  padding: 6px 9px;
+
+  color: #3345a8;
+  background: #f0f1ff;
+
+  border-radius: 6px;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.book-info h4 {
+  margin: 13px 0 8px;
+
+  color: #20243a;
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.author,
+.location {
+  color: #59657c;
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+/* Availability status */
+
+.availability {
+  margin: 16px 0;
+
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.available {
+  color: #176b49 !important;
+}
+
+.unavailable {
+  color: #a52f36 !important;
+}
+
+/* Secondary button */
+
+.secondary-button {
+  width: 100%;
+  padding: 12px;
+
+  color: #4054c5 !important;
+  background: #ffffff !important;
+
+  border: 1px solid #d5dcef;
+  border-radius: 9px;
+
+  font-weight: 700;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.secondary-button:hover {
+  color: #3345a8 !important;
+  background: #f1f2ff !important;
+  border-color: #bfc8f3;
+}
+
+/* ==========================================
+   ANALYTICS
+   ========================================== */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.stat-card {
+  padding: 25px;
+
+  background: #ffffff;
+  border: 1px solid #e1e6ef;
+  border-radius: 14px;
+
+  box-shadow: 0 3px 12px rgba(24, 38, 74, 0.035);
+}
+
+.stat-card p {
+  margin: 0;
+
+  color: #59657c;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.stat-card h3 {
+  margin: 14px 0 0;
+
+  color: #4054c5;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.compact-card .book-info {
+  padding: 22px;
+}
+
+/* ==========================================
+   FOOTER
+   ========================================== */
+
+footer {
+  padding: 25px;
+
+  color: #59657c;
+  background: #ffffff;
+
+  border-top: 1px solid #e5e9f1;
+
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ==========================================
+   ACCESSIBILITY
+   ========================================== */
+
+button:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(64, 84, 197, 0.3);
+  outline-offset: 3px;
+}
+
+/* ==========================================
+   RESPONSIVE LAYOUT
+   ========================================== */
+
+@media (max-width: 800px) {
+  .book-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topbar {
+    padding-left: 4%;
+    padding-right: 4%;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .main {
+    padding: 30px 16px;
+  }
+
+  .welcome h2 {
+    font-size: 27px;
+  }
+
+  .search-form {
+    flex-wrap: wrap;
+    padding: 12px;
+  }
+
+  .search-form > span {
+    font-size: 23px;
+  }
+
+  .search-form input,
+  .search-form input[type="search"] {
+    flex: 1;
+    width: calc(100% - 45px);
+    min-height: 44px;
+  }
+
+  .search-form button {
+    width: 100%;
+  }
+
+  .book-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .role-picker {
+    flex-wrap: wrap;
+  }
+}/* Authentication */
+
+.login-card {
+  max-width: 520px;
+  margin: 20px auto;
+  padding: 32px;
+  background: white;
+  border: 1px solid #e4e8f0;
+  border-radius: 18px;
+  box-shadow: 0 12px 35px #18264a0a;
+}
+
+.login-card h2 {
+  margin: 12px 0;
+  font-size: 28px;
+}
+
+.login-description {
+  color: #69758b;
+  line-height: 1.6;
+  margin-bottom: 25px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.login-form label {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #dce2ed;
+  border-radius: 9px;
+  outline-color: #4054c5;
+}
+
+.login-button,
+.logout-button {
+  border: 0;
+  border-radius: 9px;
+  background: #4054c5;
+  color: white;
+  padding: 12px 18px;
+  font-weight: 650;
+}
+
+.login-button {
+  margin-top: 12px;
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.login-error {
+  padding: 10px;
+  border-radius: 8px;
+  background: #fff0f0;
+  color: #bd3030;
+  font-size: 13px;
+}
+
+.demo-accounts {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid #e5e9f1;
+}
+
+.demo-accounts h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.demo-accounts p {
+  color: #748096;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.demo-role-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 15px;
+}
+
+.demo-role-buttons button {
+  border: 1px solid #dce2f1;
+  border-radius: 8px;
+  background: white;
+  color: #4054c5;
+  padding: 11px;
+  font-weight: 650;
+}
+
+.demo-role-buttons button:hover {
+  background: #f0f2ff;
+}
+
+.account-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-info strong {
+  font-size: 13px;
+}
+
+.account-info span {
+  color: #68748a;
+  font-size: 12px;
+}
+
+.logout-button {
+  background: white;
+  color: #4054c5;
+  border: 1px solid #dce2f1;
+}
+
+.logout-button:hover {
+  background: #f0f2ff;
+}
+
+@media (max-width: 600px) {
+  .login-card {
+    padding: 22px;
+  }
+
+  .account-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+/* ===== SmartLib AI login text visibility fixes ===== */
+
+.login-card {
+  background-color: #ffffff;
+  color: #1f2937;
+}
+
+.login-card h2 {
+  color: #1f2937 !important;
+}
+
+.login-card h3 {
+  color: #243047;
+}
+
+.login-card label {
+  color: #243047;
+}
+
+.login-description {
+  color: #65738b !important;
+}
+
+.login-card p {
+  color: #65738b;
+}
+
+.login-card .login-description {
+  color: #65738b !important;
+}
+
+.login-card input {
+  background-color: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d5dceb;
+}
+
+.login-card input::placeholder {
+  color: #8792a5;
+}
+
+.login-card input:focus {
+  border-color: #4054c5;
+  outline: 2px solid #e4e8ff;
+}
+
+.login-error {
+  color: #a52626;
+  background-color: #fff0f0;
+}
+
+.demo-accounts {
+  border-top-color: #e5e9f1;
+}
+
+.demo-accounts h3 {
+  color: #243047;
+}
+
+.demo-accounts p {
+  color: #68758c !important;
+}
+
+.demo-role-buttons button {
+  background-color: #ffffff;
+  color: #4054c5;
+  border-color: #dce2f1;
+}
+
+.demo-role-buttons button:hover {
+  background-color: #f0f2ff;
+}
+
+.login-button {
+  color: #ffffff;
+  background-color: #4054c5;
+}
+
+.login-button:hover {
+  background-color: #3445ae;
+}
