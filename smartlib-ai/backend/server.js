@@ -1,3 +1,4 @@
+
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -7,6 +8,7 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GoogleGenAI } from "@google/genai";
+import { createHash } from "node:crypto";
 
 const app = express();
 const PORT = 5000;
@@ -77,6 +79,17 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (book_id) REFERENCES books(id)
+  );
+  
+`);
+// Store catalogue embeddings separately from the original book records.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS book_embeddings (
+    book_id INTEGER PRIMARY KEY,
+    content_hash TEXT NOT NULL,
+    embedding TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
   );
 `);
 const userColumns = db.prepare(
@@ -216,7 +229,209 @@ function requireRole(...allowedRoles) {
     next();
   };
 }
+// Convert text into a Gemini embedding vector.
+// Retry temporary Gemini API failures with exponential backoff.
+async function withGeminiRetry(operation, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      const details = [
+        error?.message,
+        error?.status,
+        error?.code,
+        error?.error?.status,
+        error?.error?.message
+      ].filter(Boolean).join(" ");
 
+      const retryable =
+        /429|500|502|503|504|RESOURCE_EXHAUSTED|UNAVAILABLE|high demand|rate.?limit|temporar/i
+          .test(details);
+
+      if (!retryable || attempt === maxAttempts) {
+        throw error;
+      }
+
+      const delayMs = 1000 * 2 ** (attempt - 1);
+
+      console.warn(
+        `Temporary Gemini failure. Retry ${attempt + 1}/${maxAttempts} in ${delayMs}ms.`
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw new Error("Gemini request failed after retries.");
+}
+
+// Convert text into a Gemini embedding vector.
+async function embedText(text, taskType) {
+  if (!genAI) {
+    throw new Error("Gemini is not configured.");
+  }
+
+  const result = await withGeminiRetry(() =>
+    genAI.models.embedContent({
+      model: "gemini-embedding-001",
+      contents: text,
+      config: {
+        taskType,
+        outputDimensionality: 768
+      }
+    })
+  );
+
+  const values = result.embeddings?.[0]?.values;
+
+  if (!Array.isArray(values) || values.length === 0) {
+    throw new Error("Gemini returned an empty embedding.");
+  }
+
+  return values;
+}
+  
+
+// Build consistent searchable text from a catalogue record.
+function getBookSearchText(book) {
+  return [
+    `Title: ${book.title}`,
+    `Author: ${book.author}`,
+    `Category: ${book.category}`,
+    `Level: ${book.level}`,
+    `Resource type: ${book.type}`,
+    `Location: ${book.location}`,
+    `Available copies: ${book.availableCopies}`,
+    `Total copies: ${book.totalCopies}`
+  ].join("\n");
+}
+
+// Ensure every book has a current, stored embedding.
+async function ensureBookEmbeddings(books) {
+  const getStored = db.prepare(`
+    SELECT content_hash, embedding
+    FROM book_embeddings
+    WHERE book_id = ?
+  `);
+
+  const saveEmbedding = db.prepare(`
+    INSERT INTO book_embeddings
+      (book_id, content_hash, embedding, updated_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(book_id) DO UPDATE SET
+      content_hash = excluded.content_hash,
+      embedding = excluded.embedding,
+      updated_at = CURRENT_TIMESTAMP
+  `);
+
+  for (const book of books) {
+    const searchableText = getBookSearchText(book);
+
+    const contentHash = createHash("sha256")
+      .update(searchableText)
+      .digest("hex");
+
+    const stored = getStored.get(book.id);
+
+    // Reuse the saved vector when the searchable text has not changed.
+    if (stored && stored.content_hash === contentHash) {
+      continue;
+    }
+
+    // Generate a new vector for a new or updated book.
+    const embedding = await embedText(
+      searchableText,
+      "RETRIEVAL_DOCUMENT"
+    );
+
+    saveEmbedding.run(
+      book.id,
+      contentHash,
+      JSON.stringify(embedding)
+    );
+  }
+}
+
+// Measure how closely two vectors point in the same direction.
+function cosineSimilarity(vectorA, vectorB) {
+  if (
+    !Array.isArray(vectorA) ||
+    !Array.isArray(vectorB) ||
+    vectorA.length !== vectorB.length ||
+    vectorA.length === 0
+  ) {
+    return 0;
+  }
+
+  let dotProduct = 0;
+  let magnitudeA = 0;
+  let magnitudeB = 0;
+
+  for (let i = 0; i < vectorA.length; i++) {
+    dotProduct += vectorA[i] * vectorB[i];
+    magnitudeA += vectorA[i] * vectorA[i];
+    magnitudeB += vectorB[i] * vectorB[i];
+  }
+
+  if (magnitudeA === 0 || magnitudeB === 0) {
+    return 0;
+  }
+
+  return dotProduct / (Math.sqrt(magnitudeA) * Math.sqrt(magnitudeB));
+}
+
+// Retrieve the most relevant catalogue records for a question.
+async function semanticBookSearch(question, limit = 4) {
+  const books = db.prepare(`
+    SELECT
+      id, title, author, category, level,
+      availableCopies, totalCopies, location, type
+    FROM books
+    ORDER BY title
+  `).all();
+
+  if (books.length === 0) {
+    return [];
+  }
+
+  // Create or refresh saved vectors before searching.
+  await ensureBookEmbeddings(books);
+
+  // Embed the user's question using the query task type.
+  const questionEmbedding = await embedText(
+    question,
+    "RETRIEVAL_QUERY"
+  );
+
+  const getEmbedding = db.prepare(`
+    SELECT embedding
+    FROM book_embeddings
+    WHERE book_id = ?
+  `);
+
+  const rankedBooks = books.map((book) => {
+    const stored = getEmbedding.get(book.id);
+    const bookEmbedding = stored
+      ? JSON.parse(stored.embedding)
+      : [];
+
+    return {
+      ...book,
+      similarity: cosineSimilarity(
+        questionEmbedding,
+        bookEmbedding
+      )
+    };
+  });
+
+  // Highest semantic similarity first.
+  rankedBooks.sort((a, b) => b.similarity - a.similarity);
+
+  // Filter weak matches rather than inventing a catalogue result.
+  return rankedBooks
+    .filter((book) => book.similarity >= 0.30)
+    .slice(0, limit);
+}
 app.post("/api/auth/login", (req, res) => {
   const email = String(req.body?.email || "").trim().toLowerCase();
   const password = req.body?.password;
@@ -397,7 +612,7 @@ app.get(
 
 
 
-// 8. SmartLib AI Assistant — answers grounded in the book catalogue.
+// 8. SmartLib AI Assistant — semantic search + RAG.
 app.post("/api/ai/chat", authenticateToken, async (req, res) => {
   try {
     const message = req.body?.message;
@@ -416,90 +631,71 @@ app.post("/api/ai/chat", authenticateToken, async (req, res) => {
 
     if (!genAI) {
       return res.status(503).json({
-        error: "Gemini is not configured. Check GEMINI_API_KEY in backend/.env."
+        error: "Gemini is not configured. Check backend/.env."
       });
     }
 
-    // Fetch real catalogue records from SQLite.
-    const books = db.prepare(`
-      SELECT
-        id, title, author, category, level,
-        availableCopies, totalCopies, location, type
-      FROM books
-      ORDER BY title
-    `).all();
+    // STEP 1: Retrieve relevant books using semantic search.
+    const retrievedBooks = await semanticBookSearch(
+      message.trim(),
+      4
+    );
 
+    const catalogueContext = retrievedBooks.map((book) => ({
+      id: book.id,
+      title: book.title,
+      author: book.author,
+      category: book.category,
+      level: book.level,
+      type: book.type,
+      location: book.location,
+      availableCopies: book.availableCopies,
+      totalCopies: book.totalCopies
+    }));
+
+    // STEP 2: Generate an answer using the retrieved records.
     const prompt = `
 You are SmartLib AI, a helpful university library assistant.
 
-The current user's role is: ${req.user.role}
-
-Answer the user's question using the catalogue supplied below.
-
-Rules:
-- Never invent book titles, authors, locations, or availability.
-- Use the catalogue as the source of truth for library inventory.
-- Recommend matching books and explain briefly why they are relevant.
-- For availability questions, use the exact availableCopies and totalCopies values.
-- If no relevant catalogue item exists, say that clearly.
-- You may explain general educational concepts, but distinguish them from
-  information verified in the catalogue.
-- Do not reveal passwords, API keys, or private user information.
-- Do not claim to reserve, borrow, or renew books; this endpoint does not
-  perform those actions.
-- Be concise and friendly.
-
-CATALOGUE:
-${JSON.stringify(books, null, 2)}
+The authenticated user's role is: ${req.user.role}
 
 USER QUESTION:
 ${message.trim()}
+
+RETRIEVED LIBRARY RECORDS:
+${JSON.stringify(catalogueContext, null, 2)}
+
+STRICT RULES:
+1. Never invent book titles, authors, locations, or availability.
+2. Use the retrieved records as the source of truth for catalogue facts.
+3. Recommend a catalogue resource only if it appears in the retrieved records.
+4. For availability questions, use the exact availableCopies and totalCopies
+   values from the retrieved records.
+5. If no relevant record was retrieved, say that no matching resource was
+   found in the retrieved catalogue records.
+6. Do not claim that the entire library has been searched when no relevant
+   record was retrieved.
+7. You may explain general educational concepts using general knowledge.
+   Do not present general knowledge as verified catalogue information.
+8. Do not claim to reserve, borrow, renew, or modify any record.
+9. Do not reveal passwords, API keys, or private user information.
+10. Be concise, friendly, and transparent.
+
+Answer the user's question now.
 `;
 
-let result;
-let lastError;
-
-for (let attempt = 1; attempt <= 3; attempt++) {
-  try {
-    result = await genAI.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        temperature: 0.2
-      }
-    });
-
-    break;
-  } catch (error) {
-    lastError = error;
-
-    const errorMessage = String(
-      error?.message || error
+    // STEP 3: Generate the answer with retries for temporary failures.
+    const result = await withGeminiRetry(() =>
+      genAI.models.generateContent({
+       model: "gemini-3.8-flash",
+        contents: prompt,
+        config: {
+          temperature: 0.2
+        }
+      })
     );
 
-    const isTemporaryError =
-      /503|UNAVAILABLE|high demand|429|RESOURCE_EXHAUSTED|500|INTERNAL/i
-        .test(errorMessage);
-
-    if (!isTemporaryError || attempt === 3) {
-      throw error;
-    }
-
-    console.warn(
-      `Gemini temporarily unavailable. Retry ${attempt}/3...`
-    );
-
-    await new Promise(resolve =>
-      setTimeout(resolve, attempt * 1500)
-    );
-  }
-}
-
-if (!result) {
-  throw lastError || new Error("Gemini did not return a result.");
-}
-
-const answer = result.text;
+    const answer = result.text;
 
     if (!answer) {
       return res.status(502).json({
@@ -507,19 +703,19 @@ const answer = result.text;
       });
     }
 
-    // Return catalogue records actually referenced in the answer.
-    const answerLower = answer.toLowerCase();
-
-    const sources = books
-      .filter(book => answerLower.includes(book.title.toLowerCase()))
-      .map(book => ({
-        id: book.id,
-        title: book.title,
-        author: book.author,
-        location: book.location,
-        availableCopies: book.availableCopies,
-        totalCopies: book.totalCopies
-      }));
+    // STEP 4: Return the actual retrieved catalogue records as sources.
+    const sources = retrievedBooks.map((book) => ({
+      id: book.id,
+      title: book.title,
+      author: book.author,
+      category: book.category,
+      level: book.level,
+      type: book.type,
+      location: book.location,
+      availableCopies: book.availableCopies,
+      totalCopies: book.totalCopies,
+      similarity: Number(book.similarity.toFixed(4))
+    }));
 
     return res.json({
       answer,
@@ -527,14 +723,13 @@ const answer = result.text;
     });
 
   } catch (error) {
-    console.error("SmartLib AI error:", error);
+    console.error("SmartLib RAG error:", error);
 
     return res.status(500).json({
       error: "The AI assistant is temporarily unavailable. Please try again."
     });
   }
 });
-
 // 9. Start the server — only once, at the end.
 app.listen(PORT, () => {
   console.log(`SmartLib AI backend running at http://localhost:${PORT}`);

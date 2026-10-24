@@ -44,6 +44,12 @@ function App() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // SmartLib AI chat state
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiMessages, setAiMessages] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
   // Restore the signed-in user when the page reloads.
   useEffect(() => {
     if (!token) return;
@@ -249,6 +255,64 @@ function App() {
     searchBooks(query);
   }
 
+async function handleAIChat(event) {
+  event.preventDefault();
+
+  const question = aiQuestion.trim();
+
+  if (!question || aiLoading) return;
+
+  if (!token) {
+    setAiError("Please log in again to use SmartLib AI.");
+    return;
+  }
+
+  setAiError("");
+
+  setAiMessages((previous) => [
+    ...previous,
+    { role: "user", text: question },
+  ]);
+
+  setAiQuestion("");
+  setAiLoading(true);
+
+  try {
+    const response = await fetch(`${API}/ai/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ message: question }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.error || "The AI assistant could not answer your question."
+      );
+    }
+
+    setAiMessages((previous) => [
+      ...previous,
+      {
+        role: "assistant",
+        text: result.answer || "No answer was returned.",
+        sources: Array.isArray(result.sources) ? result.sources : [],
+      },
+    ]);
+  } catch (error) {
+    setAiError(
+      error.message || "Unable to contact SmartLib AI. Please try again."
+    );
+  } finally {
+    setAiLoading(false);
+  }
+}
+
+
   // Login page
   if (!user) {
     return (
@@ -399,6 +463,144 @@ function App() {
               : "Discover resources and explore research relevant to your interests."}
           </p>
         </section>
+        
+{/* SmartLib AI Assistant */}
+<section className="ai-assistant">
+  <div className="ai-header">
+    <div className="ai-avatar">AI</div>
+
+    <div>
+      <h3>Ask SmartLib AI</h3>
+      <p>
+        Get book recommendations and answers about your library.
+      </p>
+    </div>
+  </div>
+
+  <div className="ai-suggestions">
+    <button
+      type="button"
+      onClick={() =>
+        setAiQuestion(
+          "Recommend beginner-friendly machine learning books available in our library."
+        )
+      }
+    >
+      Recommend ML books
+    </button>
+
+    <button
+      type="button"
+      onClick={() =>
+        setAiQuestion(
+          "Which books about artificial intelligence are available?"
+        )
+      }
+    >
+      Find AI books
+    </button>
+
+    <button
+      type="button"
+      onClick={() =>
+        setAiQuestion("Explain machine learning in simple terms.")
+      }
+    >
+      Explain a concept
+    </button>
+  </div>
+
+  <div className="ai-chat-messages" aria-live="polite">
+    {aiMessages.length === 0 && (
+      <p>
+        Hello, {user.name}! Ask me about books, availability, or research.
+      </p>
+    )}
+
+    {aiMessages.map((chatMessage, index) => (
+      <div
+        className={`ai-message ${
+          chatMessage.role === "user"
+            ? "ai-user-message"
+            : "ai-assistant-message"
+        }`}
+        key={`${chatMessage.role}-${index}`}
+      >
+        <strong>
+          {chatMessage.role === "user" ? "You" : "SmartLib AI"}
+        </strong>
+
+        <p className="ai-message-text">{chatMessage.text}</p>
+
+        {chatMessage.role === "assistant" &&
+          chatMessage.sources?.length > 0 && (
+            <div className="ai-sources">
+              <strong>Catalogue sources</strong>
+
+              {chatMessage.sources.map((source, sourceIndex) => (
+                <div
+                  className="ai-source-item"
+                  key={`${source.id ?? source.title}-${sourceIndex}`}
+                >
+                  <strong>{source.title}</strong>
+
+                  {source.author && <span>By {source.author}</span>}
+
+                  {source.location && (
+                    <span>Location: {source.location}</span>
+                  )}
+
+                  {source.availableCopies !== undefined && (
+                    <span>
+                      Available copies: {source.availableCopies}
+                      {source.totalCopies !== undefined
+                        ? ` of ${source.totalCopies}`
+                        : ""}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+      </div>
+    ))}
+
+    {aiLoading && (
+      <p role="status">SmartLib AI is thinking...</p>
+    )}
+  </div>
+
+  {aiError && (
+    <p className="ai-error" role="alert">
+      {aiError}
+    </p>
+  )}
+
+  <form className="ai-chat-form" onSubmit={handleAIChat}>
+    <input
+      type="text"
+      value={aiQuestion}
+      onChange={(event) => setAiQuestion(event.target.value)}
+      placeholder="Ask about books, availability, or research..."
+      aria-label="Ask SmartLib AI"
+      maxLength={1000}
+      disabled={aiLoading}
+      required
+    />
+
+    <button
+      type="submit"
+      disabled={aiLoading || !aiQuestion.trim()}
+    >
+      {aiLoading ? "Thinking..." : "Ask AI"}
+    </button>
+  </form>
+
+  <p className="ai-disclaimer">
+    Catalogue answers are based on available library records.
+  </p>
+</section>
+
 
         {isLibrarian && (
           <section className="stats-grid">
